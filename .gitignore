@@ -1,0 +1,4 @@
+nback_env/
+__pycache__/
+*.csv
+.DS_Store
