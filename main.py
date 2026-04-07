@@ -100,13 +100,24 @@ def jugar_bloque(secuencia, guardar_datos=True):
 
 # --- 3. INICIO DEL PROGRAMA Y DATOS DEL PACIENTE ---
 info_paciente = {'DNI': ''}
+
+# 1. PRIMERO abramos la ventana para pedir el dato
 dlg = gui.DlgFromDict(dictionary=info_paciente, title='Datos del Paciente - NeuroLab')
-if not dlg.OK: core.quit()
 
-nombre_archivo = f"datos_{info_paciente['DNI']}_{time.strftime('%Y%m%d_%H%M')}.csv"
+# Si presiona Cancelar, salimos
+if not dlg.OK: 
+    core.quit()
 
+# 2. LUEGO extraemos lo que escribió y lo validamos
+dni_paciente = info_paciente['DNI']
+
+if not dni_paciente.isdigit() or len(dni_paciente) < 8:
+    print("Error: DNI inválido. El programa se cerrará.")
+    core.quit()
+
+nombre_archivo = f"datos_{dni_paciente}_{time.strftime('%Y%m%d_%H%M')}.csv"
 # --- 4. PREPARACIÓN GRÁFICA ---
-win = visual.Window(size=(800, 600), fullscr=False, color='black', units='height')
+win = visual.Window(size=(800, 600), fullscr=True, color='black', units='height')
 cruz = visual.TextStim(win, text='+', color='white', height=0.1)
 estimulo_letra = visual.TextStim(win, text='', color='white', height=0.2)
 reloj_rt = core.Clock()
@@ -145,3 +156,6 @@ with open(nombre_archivo, mode='w', newline='', encoding='utf-8') as archivo_csv
     escritor.writerows(resultados_finales)
 
 print(f"\n¡Experimento finalizado! Datos del paciente {info_paciente['DNI']} guardados en: {nombre_archivo}")
+
+# AGREGA ESTA LÍNEA AL FINAL PARA EVITAR EL CRASHEO EN MAC
+core.quit()
