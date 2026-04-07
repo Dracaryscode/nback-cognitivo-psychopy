@@ -1,4 +1,5 @@
 import csv
+import os
 import time
 import random
 from psychopy import visual, core, event, gui
