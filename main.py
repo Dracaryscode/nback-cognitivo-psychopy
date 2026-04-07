@@ -12,9 +12,8 @@ TIEMPO_ESTIMULO = 0.5
 TIEMPO_ISI = 1.0       
 CARPETA_DATOS = "datos_pacientes"
 
-# --- 2. FUNCIONES DEL MOTOR (LÓGICA) ---
+# --- 2. FUNCIONES DEL MOTOR ---
 def generar_bloque_nback(n_back, total_letras, prob_target=0.3):
-    """Fábrica de secuencias pseudo-aleatorias"""
     abecedario = ['A', 'B', 'C', 'D', 'E', 'F', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'T']
     num_targets = int(total_letras * prob_target) 
     posiciones_validas = list(range(n_back, total_letras))
@@ -32,13 +31,11 @@ def generar_bloque_nback(n_back, total_letras, prob_target=0.3):
     return secuencia
 
 def mostrar_mensaje(texto):
-    """Muestra un texto en pantalla y espera a que el paciente presione ESPACIO"""
     pantalla = visual.TextStim(win, text=texto, color='white', height=0.04, wrapWidth=1.5)
     pantalla.draw()
     win.flip()
     event.waitKeys(keyList=['space'])
 
-# ¡NUEVO!: Se añadió el parámetro 'es_practica'
 def jugar_bloque(secuencia, guardar_datos=True, es_practica=False):
     datos_bloque = []
     
@@ -54,12 +51,12 @@ def jugar_bloque(secuencia, guardar_datos=True, es_practica=False):
         win.flip()
         core.wait(jitter)
         
-        # Preparar
+        # Preparar estímulo
         estimulo_letra.text = letra
         event.clearEvents(eventType='keyboard')
         reloj_rt.reset()
         
-        # 2. Estímulo
+        # 2. Mostrar Letra
         estimulo_letra.draw()
         win.flip()
         core.wait(TIEMPO_ESTIMULO)
@@ -72,9 +69,8 @@ def jugar_bloque(secuencia, guardar_datos=True, es_practica=False):
         tecla = None
         tiempo_inicio_isi = core.getTime()
         
-        # ¡NUEVO!: Ahora escuchamos 's' (Sí) y 'n' (No)
         while core.getTime() - tiempo_inicio_isi < TIEMPO_ISI:
-            teclas = event.getKeys(keyList=['s', 'n', 'escape'], timeStamped=reloj_rt)
+            teclas = event.getKeys(keyList=['k', 'l', 'escape'], timeStamped=reloj_rt)
             if teclas and not tecla_presionada: 
                 tecla = teclas[0][0]
                 tiempo_reaccion = teclas[0][1]
@@ -83,107 +79,81 @@ def jugar_bloque(secuencia, guardar_datos=True, es_practica=False):
                     win.close()
                     core.quit()
 
-        # ¡NUEVO!: Evaluación Lógica de 2 Botones
-        categoria = "Omision (No respondio)" # Por defecto si el tiempo acaba y no presionó
-        
-        if es_target:
-            if tecla == 's': categoria = "Hit (Acierto)"
-            elif tecla == 'n': categoria = "Miss (Error)"
-        else: # Si NO es target
-            if tecla == 'n': categoria = "Correct Rejection (Rechazo Correcto)"
-            elif tecla == 's': categoria = "False Alarm (Falsa Alarma)"
-
-        # ¡NUEVO!: Feedback Visual solo en Práctica
-        if es_practica:
-            if categoria in ["Hit (Acierto)", "Correct Rejection (Rechazo Correcto)"]:
-                texto_fb = "¡Correcto!"
-                color_fb = "green"
-            elif categoria == "Omision (No respondio)":
-                texto_fb = "¡Muy lento! Responde S o N"
-                color_fb = "yellow"
+        # Evaluación lógica
+        if i < N_BACK:
+            categoria = "Ensayo Inicial"
+        else:
+            categoria = "Omision"
+            if es_target:
+                if tecla == 'k': categoria = "Hit (Acierto)"
+                elif tecla == 'l': categoria = "Miss (Error)"
             else:
-                texto_fb = "¡Incorrecto!"
-                color_fb = "red"
-                
-            feedback_stim = visual.TextStim(win, text=texto_fb, color=color_fb, height=0.08)
-            feedback_stim.draw()
-            win.flip()
-            core.wait(0.5) # Muestra el feedback medio segundo antes del siguiente turno
+                if tecla == 'l': categoria = "Correct Rejection"
+                elif tecla == 'k': categoria = "False Alarm"
 
-        # Guardado
+        # Feedback de Práctica (Neutral y sin avisos de lentitud)
+        if es_practica and i >= N_BACK and tecla_presionada:
+            texto_fb = "Correcto" if "Correct" in categoria or "Hit" in categoria else "Incorrecto"
+            # Color blanco para evitar sesgos de ansiedad
+            feedback = visual.TextStim(win, text=texto_fb, color='white', height=0.06)
+            feedback.draw()
+            win.flip()
+            core.wait(0.3) 
+
         if guardar_datos:
             datos_bloque.append({
-                'Ensayo': i + 1,
-                'Letra': letra,
-                'Es_Target': es_target,
-                'Presiono_Boton': tecla_presionada, # Opcional mantenerlo
+                'Ensayo': i + 1, 'Letra': letra, 'Es_Target': es_target,
                 'Tecla': tecla if tecla else "Ninguna",
                 'Tiempo_Reaccion_seg': round(tiempo_reaccion, 3),
                 'Evaluacion': categoria
             })
-            
     return datos_bloque
 
-# --- 3. INICIO Y DATOS DEL PACIENTE ---
+# --- 3. INICIO ---
 info_paciente = {'DNI': ''}
-
-dlg = gui.DlgFromDict(dictionary=info_paciente, title='Datos del Paciente - NeuroLab')
-if not dlg.OK: 
-    core.quit()
+dlg = gui.DlgFromDict(dictionary=info_paciente, title='NeuroLab - N-Back')
+if not dlg.OK: core.quit()
 
 dni_paciente = info_paciente['DNI']
-if not dni_paciente.isdigit() or len(dni_paciente) < 8:
-    print("Error: DNI inválido. El programa se cerrará.")
-    core.quit()
+if not dni_paciente.isdigit() or len(dni_paciente) < 8: core.quit()
 
 os.makedirs(CARPETA_DATOS, exist_ok=True) 
 nombre_archivo = os.path.join(CARPETA_DATOS, f"datos_{dni_paciente}_{time.strftime('%Y%m%d_%H%M')}.csv")
 
-# --- 4. PREPARACIÓN GRÁFICA ---
+# --- 4. VENTANA ---
 win = visual.Window(size=(800, 600), fullscr=True, color='black', units='height')
 cruz = visual.TextStim(win, text='+', color='white', height=0.1)
 estimulo_letra = visual.TextStim(win, text='', color='white', height=0.2)
 reloj_rt = core.Clock()
 
-# --- 5. BLOQUE DE PRÁCTICA ---
-texto_practica = """Vamos a hacer una PRÁCTICA de 10 letras.
+# --- 5. BLOQUES ---
+mostrar_mensaje("""Vamos a hacer una PRÁCTICA de 10 letras.
 
-En cada turno, DEBES presionar una tecla:
-- Presiona 'S' (SÍ) si la letra es IGUAL a la de hace DOS turnos.
-- Presiona 'N' (NO) si la letra es DIFERENTE.
+IMPORTANTE: Las primeras DOS letras son solo para observar y memorizar.
+A partir de la TERCERA letra, debes empezar a responder:
 
-En esta fase te diremos si acertaste o te equivocaste.
-Estos datos NO serán evaluados.
+- Presiona 'K' (SÍ) si la letra es IGUAL a la de hace DOS turnos.
+- Presiona 'L' (NO) si es DIFERENTE.
 
-(Presiona ESPACIO para iniciar la práctica)"""
+(Presiona ESPACIO para iniciar la práctica)""")
 
-mostrar_mensaje(texto_practica)
-secuencia_practica = generar_bloque_nback(N_BACK, total_letras=10, prob_target=0.3)
-# Activamos es_practica=True para que muestre el feedback visual
-jugar_bloque(secuencia_practica, guardar_datos=False, es_practica=True) 
+jugar_bloque(generar_bloque_nback(N_BACK, 10), guardar_datos=False, es_practica=True)
 
-# --- 6. BLOQUE EXPERIMENTAL (REAL) ---
-texto_real = """¡Práctica terminada! 
+mostrar_mensaje("""¡Práctica terminada! 
 
 Ahora comenzará el EXPERIMENTO REAL de 30 letras.
-Recuerda: 'S' para SÍ, 'N' para NO.
+Recuerda: Memoriza las dos primeras, y a partir de la tercera responde:
+'K' para SÍ, 'L' para NO.
+
 Ya NO verás mensajes de correcto/incorrecto. Concéntrate.
 
-(Presiona ESPACIO para iniciar la prueba)"""
+(Presiona ESPACIO para iniciar la prueba)""")
+res = jugar_bloque(generar_bloque_nback(N_BACK, 30), guardar_datos=True)
 
-mostrar_mensaje(texto_real)
-secuencia_real = generar_bloque_nback(N_BACK, total_letras=30, prob_target=0.3)
-# Aquí apagamos la práctica y prendemos el guardado
-resultados_finales = jugar_bloque(secuencia_real, guardar_datos=True, es_practica=False)
-
-# --- 7. CIERRE Y EXPORTACIÓN ---
+# --- 6. CIERRE ---
 win.close()
-
-with open(nombre_archivo, mode='w', newline='', encoding='utf-8') as archivo_csv:
-    campos = ['Ensayo', 'Letra', 'Es_Target', 'Presiono_Boton', 'Tecla', 'Tiempo_Reaccion_seg', 'Evaluacion']
-    escritor = csv.DictWriter(archivo_csv, fieldnames=campos)
-    escritor.writeheader()
-    escritor.writerows(resultados_finales)
-
-print(f"\n¡Experimento finalizado! Datos guardados en: {nombre_archivo}")
+with open(nombre_archivo, 'w', newline='', encoding='utf-8') as f:
+    writer = csv.DictWriter(f, fieldnames=['Ensayo','Letra','Es_Target','Tecla','Tiempo_Reaccion_seg','Evaluacion'])
+    writer.writeheader()
+    writer.writerows(res)
 core.quit()
