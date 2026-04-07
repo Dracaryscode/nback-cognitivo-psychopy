@@ -5,7 +5,8 @@ from psychopy import visual, core, event, gui
 
 # --- 1. CONSTANTES DEL EXPERIMENTO ---
 N_BACK = 2
-TIEMPO_FIJACION = 0.5  
+TIEMPO_FIJACION_MIN = 0.4  # 400 ms
+TIEMPO_FIJACION_MAX = 0.6  # 600 ms
 TIEMPO_ESTIMULO = 0.5  
 TIEMPO_ISI = 1.0       
 
@@ -45,10 +46,11 @@ def jugar_bloque(secuencia, guardar_datos=True):
             if letra == secuencia[i - N_BACK]:
                 es_target = True
 
-        # 1. Fijación
+        # 1. Fijación con Jittering (Tiempo aleatorio)
+        jitter = random.uniform(TIEMPO_FIJACION_MIN, TIEMPO_FIJACION_MAX)
         cruz.draw()
         win.flip()
-        core.wait(TIEMPO_FIJACION)
+        core.wait(jitter)
         
         # Preparar
         estimulo_letra.text = letra
