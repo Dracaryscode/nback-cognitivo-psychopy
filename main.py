@@ -1,13 +1,54 @@
 import csv
 import time
 from psychopy import visual, core, event, gui
+import random
+
+def generar_bloque_nback(n_back, total_letras, prob_target=0.3):
+    """
+    Genera una secuencia pseudo-aleatoria para la tarea N-back.
+    Garantiza un porcentaje exacto de Targets.
+    """
+    # Excluimos las vocales que suenan igual (como C y S) para no confundir al paciente
+    abecedario = ['A', 'B', 'C', 'D', 'E', 'F', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'T']
+    
+    # 1. Calcular la cantidad exacta de Targets
+    num_targets = int(total_letras * prob_target) 
+    
+    # 2. Elegir en qué posiciones caerán los Targets 
+    # (Nunca pueden caer en los primeros 'N' turnos)
+    posiciones_validas = list(range(n_back, total_letras))
+    turnos_targets = random.sample(posiciones_validas, num_targets)
+    
+    secuencia = []
+    
+    # 3. Construir la secuencia letra por letra
+    for i in range(total_letras):
+        if i in turnos_targets:
+            # ¡Es un Target! Forzamos a que repita la letra de hace 'N' pasos
+            secuencia.append(secuencia[i - n_back])
+        else:
+            # No es Target: Elegir letra aleatoria que NO sea un target accidental
+            letra_prohibida = secuencia[i - n_back] if i >= n_back else None
+            # También evitamos que la letra sea igual a la inmediatamente anterior (0-back accidental)
+            letra_anterior = secuencia[i - 1] if i >= 1 else None
+            
+            letras_validas = [l for l in abecedario if l not in (letra_prohibida, letra_anterior)]
+            secuencia.append(random.choice(letras_validas))
+            
+    return secuencia
 
 # --- 1. CONFIGURACIÓN Y DATOS DEL PACIENTE ---
 N_BACK = 2
-LETRAS_PRUEBA = ['A', 'B', 'A', 'C', 'X', 'C', 'X', 'B'] 
-TIEMPO_FIJACION = 0.5
-TIEMPO_ESTIMULO = 0.5
-TIEMPO_ISI = 1.0
+TOTAL_ENSAYOS = 30 # Cambiamos 8 letitas por un bloque real de 30 ensayos
+PORCENTAJE_TARGETS = 0.3 # 30% de las 30 letras serán aciertos obligatorios
+TIEMPO_FIJACION = 0.5  
+TIEMPO_ESTIMULO = 0.5  
+TIEMPO_ISI = 1.0|2
+
+# ¡Aquí llamamos a la fábrica de secuencias!
+LETRAS_PRUEBA = generar_bloque_nback(n_back=N_BACK, total_letras=TOTAL_ENSAYOS, prob_target=PORCENTAJE_TARGETS)
+
+print(f"Secuencia generada para el paciente: {LETRAS_PRUEBA}")
 
 # Cuadro de diálogo para ingresar el DNI
 info_paciente = {'DNI': ''}
